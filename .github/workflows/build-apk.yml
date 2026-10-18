@@ -26,13 +26,11 @@ jobs:
 
       - name: Force Create Public Directory and index.html
         run: |
-          # إنشاء المجلد والتأكد من وجود index.html بداخله
           mkdir -p public
           if [ -f "index.html" ]; then
             cp index.html public/index.html
           else
             echo "<!DOCTYPE html><html><head><title>App</title></head><body><h1>Loading...</h1></body></html>" > public/index.html
-          ls -la public/
           fi
 
       - name: Create Capacitor Config
@@ -55,11 +53,17 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
+      - name: Fix Gradle Build Issues
+        run: |
+          cd android
+          # حذف أي ملفات تخزين مؤقت تالفة قديمة لمنع خطأ الـ Jar
+          rm -rf .gradle/ caches/
+          chmod +x gradlew
+
       - name: Build APK using Gradle
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon --offline || ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
