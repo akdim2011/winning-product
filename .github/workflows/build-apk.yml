@@ -24,15 +24,24 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Create Capacitor Config
+        run: |
+          cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "com.winningproduct.app",
+            "appName": "Winning Product",
+            "webDir": "public"
+          }
+          EOF
+
       - name: Install Dependencies & Capacitor
         run: |
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Initialize and Add Android Platform
+      - name: Add Android Platform and Copy Assets
         run: |
-          npx cap init "Winning Product" "com.winningproduct.app" --web-dir "public" --yes || true
-          npx cap add android || true
+          npx cap add android
           npx cap copy android
 
       - name: Build APK using Gradle
