@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Force Create Public Directory and index.html
+      - name: Prepare Public Directory
         run: |
           mkdir -p public
           if [ -f "index.html" ]; then
@@ -53,12 +53,12 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
-      - name: Build APK using Gradle
+      - name: Build APK with Clean Gradle Options
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew clean
-          ./gradlew assembleDebug --no-daemon
+          # تشغيل البناء مع خيارات تمنع تعارض حزم Java Jar وحماية البيئة
+          ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx2048m -Dfile.encoding=UTF-8"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
