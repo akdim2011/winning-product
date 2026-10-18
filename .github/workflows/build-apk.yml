@@ -53,16 +53,12 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
-      - name: Force Java 17 Compatibility in Android
+      - name: Force Java 17 Compatibility
         run: |
           cd android
-          # تعديل إعدادات التوافق لبرمجة الجافا لكي تتطابق مع JDK 17 وتمنع الخطأ
-          if [ -f "build.gradle" ]; then
-            sed -i 's/sourceCompatibility JavaVersion.VERSION_21/sourceCompatibility JavaVersion.VERSION_17/g' build.gradle || true
-            sed -i 's/targetCompatibility JavaVersion.VERSION_21/targetCompatibility JavaVersion.VERSION_17/g' build.gradle || true
-          fi
-          # تعديل ملفات gradle الفرعية إن وجدت
-          find . -name "build.gradle" -exec sed -i 's/VERSION_21/VERSION_17/g' {} + || true
+          # تعديل أي توافقية تخص الإصدار 21 إلى 17 لمنع حدوث خطأ الترجمة
+          find . -name "build.gradle" -type f -exec sed -i 's/VERSION_21/VERSION_17/g' {} + || true
+          find . -name "build.gradle" -type f -exec sed -i 's/java 21/java 17/g' {} + || true
 
       - name: Upgrade Gradle Version
         run: |
