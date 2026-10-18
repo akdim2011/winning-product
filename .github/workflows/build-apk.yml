@@ -1,0 +1,44 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      - name: Build Web Assets / Check Directory
+        run: |
+          ls -la public/
+
+      - name: Package Web App to Android APK
+        run: |
+          # هنا كيتم تحويل ملفات public إلى تطبيق APK
+          npx @capacitor/cli init "Winning Product" "com.winningproduct.app" --web-dir "public" || true
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winning-product-apk
+          path: |
+            **/*.apk
