@@ -24,21 +24,25 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install Bubblewrap CLI
-        run: npm install -g @bubblewrap/cli
-
-      - name: Build Web Assets / Check Directory
+      - name: Install Dependencies & Capacitor
         run: |
-          ls -la public/
+          npm install
+          npm install @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Package Web App to Android APK
+      - name: Initialize and Add Android Platform
         run: |
-          # هنا كيتم تحويل ملفات public إلى تطبيق APK
-          npx @capacitor/cli init "Winning Product" "com.winningproduct.app" --web-dir "public" || true
+          npx cap init "Winning Product" "com.winningproduct.app" --web-dir "public" --yes || true
+          npx cap add android || true
+          npx cap copy android
+
+      - name: Build APK using Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: winning-product-apk
-          path: |
-            **/*.apk
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
