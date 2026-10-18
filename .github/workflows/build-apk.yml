@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -16,45 +16,51 @@ jobs:
       - name: Set up Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
           java-version: '17'
+          distribution: 'temurin'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '18'
+          cache-dependency-path: '' # تعطيل البحث الإلزامي عن ملف القفل
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Generate Package-Lock if missing & Install Dependencies
+        run: |
+          if [ ! -f "package-lock.json" ]; then
+            npm install --package-lock-only || true
+          fi
+          npm install
+          npm install --save @capacitor/core @capacitor/cli @capacitor/android
 
-      # 1. التأكد من إنشاء مجلد public ووجود ملف index.html أو بنائه
-      - name: Prepare Web Assets
+      - name: Verify Public Directory and index.html
         run: |
           mkdir -p public
-          if [ ! -f public/index.html ]; then
-            echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>App</title></head><body><div id="app"></div></body></html>' > public/index.html
+          if [ ! -f "public/index.html" ] && [ -f "index.html" ]; then
+            mv index.html public/
           fi
 
-      # 2. تثبيت وتكوين Capacitor بشكل صحيح
-      - name: Initialize Capacitor
+      - name: Create Capacitor Config
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "Winning Product" "com.winningproduct.app" --web-dir "public" --yes
+          cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "com.winningproduct.app",
+            "appName": "Winning Product",
+            "webDir": "public"
+          }
+          EOF
 
-      - name: Add Android Platform and Sync
+      - name: Add Android Platform and Copy
         run: |
-          npx cap add android
-          npx cap sync android
+          npx cap add android || true
+          npx cap copy android
 
-      # 3. بناء ملف APK باستخدام Gradle
       - name: Build APK using Gradle
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # 4. رفع ملف الـ APK الناتج
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
