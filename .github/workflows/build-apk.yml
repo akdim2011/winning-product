@@ -23,13 +23,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache-dependency-path: ''
 
-      - name: Verify Public Directory and index.html
+      - name: Force Create Public Directory and index.html
         run: |
+          # إنشاء المجلد والتأكد من وجود index.html بداخله
           mkdir -p public
-          if [ ! -f "public/index.html" ] && [ -f "index.html" ]; then
-            mv index.html public/
+          if [ -f "index.html" ]; then
+            cp index.html public/index.html
+          else
+            echo "<!DOCTYPE html><html><head><title>App</title></head><body><h1>Loading...</h1></body></html>" > public/index.html
+          ls -la public/
           fi
 
       - name: Create Capacitor Config
@@ -47,7 +50,7 @@ jobs:
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Add Android Platform & Sync
+      - name: Sync Capacitor Android
         run: |
           npx cap add android || true
           npx cap sync android
