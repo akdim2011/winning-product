@@ -53,10 +53,20 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
-      - name: Upgrade Gradle Version to Avoid Jar Error
+      - name: Force Java 17 Compatibility in Android
         run: |
           cd android
-          # تحديث إصدار Gradle إلى 8.5 لتجنب خطأ التوافق مع مكتبة التشفير
+          # تعديل إعدادات التوافق لبرمجة الجافا لكي تتطابق مع JDK 17 وتمنع الخطأ
+          if [ -f "build.gradle" ]; then
+            sed -i 's/sourceCompatibility JavaVersion.VERSION_21/sourceCompatibility JavaVersion.VERSION_17/g' build.gradle || true
+            sed -i 's/targetCompatibility JavaVersion.VERSION_21/targetCompatibility JavaVersion.VERSION_17/g' build.gradle || true
+          fi
+          # تعديل ملفات gradle الفرعية إن وجدت
+          find . -name "build.gradle" -exec sed -i 's/VERSION_21/VERSION_17/g' {} + || true
+
+      - name: Upgrade Gradle Version
+        run: |
+          cd android
           mkdir -p gradle/wrapper
           echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
           echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
