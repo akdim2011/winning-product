@@ -24,6 +24,18 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Verify Public Directory and index.html
+        run: |
+          ls -la
+          mkdir -p public
+          if [ ! -f "public/index.html" ]; then
+            echo "Warning: index.html not found in public/, checking root..."
+            if [ -f "index.html" ]; then
+              mv index.html public/
+            fi
+          fi
+          ls -la public/
+
       - name: Create Capacitor Config
         run: |
           cat << 'EOF' > capacitor.config.json
@@ -34,12 +46,12 @@ jobs:
           }
           EOF
 
-      - name: Install Dependencies & Capacitor
+      - name: Install Dependencies
         run: |
           npm install
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install --save @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Add Android Platform and Copy Assets
+      - name: Add Android Platform and Copy
         run: |
           npx cap add android
           npx cap copy android
