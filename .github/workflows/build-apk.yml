@@ -53,17 +53,12 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
-      - name: Fix Gradle Build Issues
-        run: |
-          cd android
-          # حذف أي ملفات تخزين مؤقت تالفة قديمة لمنع خطأ الـ Jar
-          rm -rf .gradle/ caches/
-          chmod +x gradlew
-
       - name: Build APK using Gradle
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon --offline || ./gradlew assembleDebug --no-daemon
+          chmod +x gradlew
+          ./gradlew clean
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
