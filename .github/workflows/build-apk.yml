@@ -2,80 +2,38 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Java JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
 
-      - name: Prepare Public Directory
-        run: |
-          mkdir -p public
-          if [ -f "index.html" ]; then
-            cp index.html public/index.html
-          else
-            echo "<!DOCTYPE html><html><head><title>App</title></head><body><h1>Loading...</h1></body></html>" > public/index.html
-          fi
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
 
-      - name: Create Capacitor Config
-        run: |
-          cat << 'EOF' > capacitor.config.json
-          {
-            "appId": "com.winningproduct.app",
-            "appName": "Winning Product",
-            "webDir": "public"
-          }
-          EOF
+      - name: Install dependencies
+        run: npm install
 
-      - name: Install Dependencies
-        run: |
-          npm install
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-
-      - name: Sync Capacitor Android
-        run: |
-          npx cap add android || true
-          npx cap sync android
-
-      - name: Force Java 17 Compatibility
-        run: |
-          cd android
-          # تعديل أي توافقية تخص الإصدار 21 إلى 17 لمنع حدوث خطأ الترجمة
-          find . -name "build.gradle" -type f -exec sed -i 's/VERSION_21/VERSION_17/g' {} + || true
-          find . -name "build.gradle" -type f -exec sed -i 's/java 21/java 17/g' {} + || true
-
-      - name: Upgrade Gradle Version
-        run: |
-          cd android
-          mkdir -p gradle/wrapper
-          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
-          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-all.zip" >> gradle/wrapper/gradle-wrapper.properties
-          echo "networkTimeout=10000" >> gradle/wrapper/gradle-wrapper.properties
-          echo "validateDistributionUrl=true" >> gradle/wrapper/gradle-wrapper.properties
+      - name: Sync Capacitor
+        run: npx cap sync android
 
       - name: Build APK using Gradle
+        working-directory: android
         run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew clean
-          ./gradlew assembleDebug --no-daemon
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
