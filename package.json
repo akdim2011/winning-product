@@ -1,0 +1,8 @@
+{
+  "name": "winning-product-finder",
+  "version": "1.0.0",
+  "description": "صائد المنتجات الرابحة: اختار نيش وشوف الأكثر مبيعا بالصور والنقطة",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
