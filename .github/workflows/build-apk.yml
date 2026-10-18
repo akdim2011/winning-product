@@ -53,12 +53,23 @@ jobs:
           npx cap add android || true
           npx cap sync android
 
-      - name: Build APK with Clean Gradle Options
+      - name: Upgrade Gradle Version to Avoid Jar Error
+        run: |
+          cd android
+          # تحديث إصدار Gradle إلى 8.5 لتجنب خطأ التوافق مع مكتبة التشفير
+          mkdir -p gradle/wrapper
+          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
+          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-all.zip" >> gradle/wrapper/gradle-wrapper.properties
+          echo "networkTimeout=10000" >> gradle/wrapper/gradle-wrapper.properties
+          echo "validateDistributionUrl=true" >> gradle/wrapper/gradle-wrapper.properties
+
+      - name: Build APK using Gradle
         run: |
           cd android
           chmod +x gradlew
-          # تشغيل البناء مع خيارات تمنع تعارض حزم Java Jar وحماية البيئة
-          ./gradlew assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx2048m -Dfile.encoding=UTF-8"
+          ./gradlew clean
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
