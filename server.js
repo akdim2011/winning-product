@@ -2,6 +2,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 try {
   fs.readFileSync(path.join(__dirname, '.env'), 'utf8').split(/\r?\n/).forEach((l) => {
@@ -19,17 +20,71 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.
 const cache = new Map();
 const TTL = 30 * 60 * 1000;
 
-function list(dir) {
-  try { return fs.readdirSync(dir).join(', '); } catch (e) { return '(ما كايناش)'; }
+/* ---------- كلمة السر ---------- */
+const PASS = process.env.APP_PASSWORD || '';
+const COOKIE = 'wp_auth';
+const MAX_AGE = 30 * 24 * 3600; // 30 يوم
+const TOKEN = PASS ? crypto.createHmac('sha256', PASS).update('winning-product-session').digest('hex') : '';
+const attempts = new Map(); // ip -> { n, t }
+
+function safeEqual(a, b) {
+  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
+function getCookie(req, name) {
+  const raw = req.headers.cookie || '';
+  for (const part of raw.split(';')) {
+    const i = part.indexOf('=');
+    if (i > -1 && part.slice(0, i).trim() === name) return part.slice(i + 1).trim();
+  }
+  return '';
+}
+function isAuthed(req) {
+  if (!PASS) return true;
+  const c = getCookie(req, COOKIE);
+  return !!c && safeEqual(c, TOKEN);
+}
+function clientIp(req) {
+  return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+}
+function tooMany(ip) {
+  const a = attempts.get(ip);
+  if (!a) return false;
+  if (Date.now() - a.t > 10 * 60 * 1000) { attempts.delete(ip); return false; }
+  return a.n >= 8;
+}
+function fail(ip) {
+  const a = attempts.get(ip);
+  if (!a || Date.now() - a.t > 10 * 60 * 1000) attempts.set(ip, { n: 1, t: Date.now() });
+  else a.n++;
+}
+function loginPage(msg) {
+  return '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1"><title>دخول</title>' +
+    '<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#EEF1F0;font-family:Tahoma,Arial,sans-serif;color:#12211D}' +
+    'form{background:#fff;border:1px solid #D5DDDA;border-radius:14px;padding:22px;width:min(320px,88vw);display:grid;gap:12px}' +
+    'h1{font-size:1.2rem;margin:0}input,button{font:inherit;padding:11px 12px;border-radius:10px;border:1px solid #D5DDDA}' +
+    'button{background:#0F5C8C;color:#fff;border-color:#0F5C8C;font-weight:700;cursor:pointer}p{margin:0;color:#B8322F;font-size:.9rem}</style></head><body>' +
+    '<form method="post" action="/login"><h1>صائد المنتجات الرابحة</h1>' +
+    (msg ? '<p>' + msg + '</p>' : '') +
+    '<input type="password" name="password" placeholder="كلمة السر" autocomplete="current-password" autofocus required>' +
+    '<button type="submit">دخول</button></form></body></html>';
+}
+function readBody(req, max) {
+  return new Promise((resolve, reject) => {
+    let s = '';
+    req.on('data', (c) => { s += c; if (s.length > max) { reject(new Error('too large')); req.destroy(); } });
+    req.on('end', () => resolve(s));
+    req.on('error', reject);
+  });
+}
+
 function findIndex() {
-  const options = [path.join(PUB, 'index.html'), path.join(ROOT, 'index.html')];
-  for (const f of options) if (fs.existsSync(f)) return f;
+  for (const f of [path.join(PUB, 'index.html'), path.join(ROOT, 'index.html')]) {
+    if (fs.existsSync(f)) return f;
+  }
   return null;
 }
-console.log('root:', list(ROOT));
-console.log('public:', list(PUB));
-
 function json(res, code, obj) {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(obj));
@@ -45,6 +100,40 @@ function sendFile(res, file) {
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://localhost');
   try {
+    /* تسجيل الدخول */
+    if (u.pathname === '/login') {
+      if (!PASS) { res.writeHead(302, { location: '/' }); return res.end(); }
+      if (req.method === 'POST') {
+        const ip = clientIp(req);
+        if (tooMany(ip)) {
+          res.writeHead(429, { 'content-type': 'text/html; charset=utf-8' });
+          return res.end(loginPage('محاولات كثيرة. عاود من بعد 10 دقايق.'));
+        }
+        const body = await readBody(req, 2048);
+        const given = new URLSearchParams(body).get('password') || '';
+        if (safeEqual(crypto.createHash('sha256').update(given).digest('hex'), crypto.createHash('sha256').update(PASS).digest('hex'))) {
+          attempts.delete(ip);
+          res.writeHead(302, {
+            location: '/',
+            'set-cookie': COOKIE + '=' + TOKEN + '; Path=/; Max-Age=' + MAX_AGE + '; HttpOnly; Secure; SameSite=Lax'
+          });
+          return res.end();
+        }
+        fail(ip);
+        res.writeHead(401, { 'content-type': 'text/html; charset=utf-8' });
+        return res.end(loginPage('كلمة السر غالطة'));
+      }
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      return res.end(loginPage(''));
+    }
+
+    /* كل شي ما عدا /login خاصو دخول */
+    if (!isAuthed(req)) {
+      if (u.pathname.startsWith('/api/')) return json(res, 401, { error: 'خاصك تسجل الدخول' });
+      res.writeHead(302, { location: '/login' });
+      return res.end();
+    }
+
     if (u.pathname === '/api/niches') {
       return json(res, 200, NICHES.map((n) => ({ id: n.id, ar: n.ar })));
     }
@@ -61,10 +150,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (u.pathname === '/' || u.pathname === '/index.html') {
       const f = findIndex();
-      if (!f) {
-        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
-        return res.end('index.html ما تلقاش.\nroot: ' + list(ROOT) + '\npublic: ' + list(PUB));
-      }
+      if (!f) { res.writeHead(404); return res.end('index.html not found'); }
       return sendFile(res, f);
     }
     const file = path.normalize(path.join(PUB, u.pathname));
@@ -76,5 +162,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log('البرنامج خدام على البورت ' + PORT);
+  console.log('خدام على البورت ' + PORT + (PASS ? ' (بكلمة سر)' : ' (بلا كلمة سر: حط APP_PASSWORD)'));
 });
