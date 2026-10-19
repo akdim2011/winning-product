@@ -3,7 +3,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-// قراءة ملف .env (اختياري)
 try {
   fs.readFileSync(path.join(__dirname, '.env'), 'utf8').split(/\r?\n/).forEach((l) => {
     const m = l.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
@@ -14,14 +13,33 @@ try {
 const NICHES = require('./niches.js');
 const { getProducts } = require('./providers.js');
 const PORT = parseInt(process.env.PORT, 10) || 3000;
-const PUB = path.join(__dirname, 'public');
+const ROOT = __dirname;
+const PUB = path.join(ROOT, 'public');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 const cache = new Map();
 const TTL = 30 * 60 * 1000;
 
+function list(dir) {
+  try { return fs.readdirSync(dir).join(', '); } catch (e) { return '(ما كايناش)'; }
+}
+function findIndex() {
+  const options = [path.join(PUB, 'index.html'), path.join(ROOT, 'index.html')];
+  for (const f of options) if (fs.existsSync(f)) return f;
+  return null;
+}
+console.log('root:', list(ROOT));
+console.log('public:', list(PUB));
+
 function json(res, code, obj) {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(obj));
+}
+function sendFile(res, file) {
+  fs.readFile(file, (err, buf) => {
+    if (err) { res.writeHead(404); return res.end('Not found'); }
+    res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream' });
+    res.end(buf);
+  });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -41,20 +59,22 @@ const server = http.createServer(async (req, res) => {
       if (out.source !== 'demo') cache.set(key, { t: Date.now(), v: out });
       return json(res, 200, out);
     }
-    // ملفات الواجهة
-    let p = u.pathname === '/' ? '/index.html' : u.pathname;
-    const file = path.normalize(path.join(PUB, p));
+    if (u.pathname === '/' || u.pathname === '/index.html') {
+      const f = findIndex();
+      if (!f) {
+        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+        return res.end('index.html ما تلقاش.\nroot: ' + list(ROOT) + '\npublic: ' + list(PUB));
+      }
+      return sendFile(res, f);
+    }
+    const file = path.normalize(path.join(PUB, u.pathname));
     if (!file.startsWith(PUB)) { res.writeHead(403); return res.end(); }
-    fs.readFile(file, (err, buf) => {
-      if (err) { res.writeHead(404); return res.end('Not found'); }
-      res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream' });
-      res.end(buf);
-    });
+    sendFile(res, file);
   } catch (e) {
     json(res, 500, { error: e.message });
   }
 });
 
 server.listen(PORT, () => {
-  console.log('\n  البرنامج خدام. حل هاد الرابط فالمتصفح:\n  http://localhost:' + PORT + '\n');
+  console.log('البرنامج خدام على البورت ' + PORT);
 });
