@@ -2,38 +2,78 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
       - name: Set up Java JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '21'
+          distribution: 'temurin'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
-      - name: Sync Capacitor
-        run: npx cap sync android
+      - name: Prepare Public Directory and index.html
+        run: |
+          mkdir -p public
+          if [ -f "index.html" ]; then
+            cp index.html public/index.html
+          else
+            echo "<!DOCTYPE html><html><head><title>App</title></head><body><h1>Loading...</h1></body></html>" > public/index.html
+          fi
+
+      - name: Create Capacitor Config
+        run: |
+          cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "com.winningproduct.app",
+            "appName": "Winning Product",
+            "webDir": "public"
+          }
+          EOF
+
+      - name: Install Dependencies
+        run: |
+          npm install
+          npm install --save-dev @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Sync Capacitor Android Correctly
+        run: |
+          npx @capacitor/cli add android || true
+          npx @capacitor/cli sync android
+
+      - name: Force Gradle to Use Java 21 Environment
+        run: |
+          cd android
+          echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
+
+      - name: Upgrade Gradle Version to 8.5
+        run: |
+          cd android
+          mkdir -p gradle/wrapper
+          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
+          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-all.zip" >> gradle/wrapper/gradle-wrapper.properties
+          echo "networkTimeout=10000" >> gradle/wrapper/gradle-wrapper.properties
+          echo "validateDistributionUrl=true" >> gradle/wrapper/gradle-wrapper.properties
 
       - name: Build APK using Gradle
-        working-directory: android
         run: |
-          chmod +x ./gradlew
-          ./gradlew assembleDebug
+          cd android
+          chmod +x gradlew
+          ./gradlew clean
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
