@@ -22,14 +22,14 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
 
       - name: Prepare Public Directory and index.html
         run: |
           mkdir -p public
           if [ -f "index.html" ]; then
             cp index.html public/index.html
-          else
+          elif [ ! -f "public/index.html" ]; then
             echo "<!DOCTYPE html><html><head><title>App</title></head><body><h1>Loading...</h1></body></html>" > public/index.html
           fi
 
@@ -45,34 +45,18 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install
+          [ -f package.json ] || npm init -y
           npm install --save-dev @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: Sync Capacitor Android Correctly
+      - name: Add and Sync Android
         run: |
-          npx @capacitor/cli add android || true
-          npx @capacitor/cli sync android
-
-      - name: Force Gradle to Use Java 21 Environment
-        run: |
-          cd android
-          echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
-
-      - name: Upgrade Gradle Version to 8.5
-        run: |
-          cd android
-          mkdir -p gradle/wrapper
-          echo "distributionBase=GRADLE_USER_HOME" > gradle/wrapper/gradle-wrapper.properties
-          echo "distributionPath=wrapper/dists" >> gradle/wrapper/gradle-wrapper.properties
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-all.zip" >> gradle/wrapper/gradle-wrapper.properties
-          echo "networkTimeout=10000" >> gradle/wrapper/gradle-wrapper.properties
-          echo "validateDistributionUrl=true" >> gradle/wrapper/gradle-wrapper.properties
+          npx cap add android
+          npx cap sync android
 
       - name: Build APK using Gradle
+        working-directory: android
         run: |
-          cd android
           chmod +x gradlew
-          ./gradlew clean
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
