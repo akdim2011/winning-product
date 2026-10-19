@@ -24,13 +24,13 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Prepare Public Directory and index.html
+      - name: Prepare Public Directory
         run: |
           mkdir -p public
           if [ -f "index.html" ]; then
             cp index.html public/index.html
           elif [ ! -f "public/index.html" ]; then
-            echo "<!DOCTYPE html><html><head><title>App</title></head><body><h1>Loading...</h1></body></html>" > public/index.html
+            echo "<!DOCTYPE html><html><body><h1>Loading...</h1></body></html>" > public/index.html
           fi
 
       - name: Create Capacitor Config
@@ -39,19 +39,24 @@ jobs:
           {
             "appId": "com.winningproduct.app",
             "appName": "Winning Product",
-            "webDir": "public"
+            "webDir": "public",
+            "server": {
+              "url": "https://winning-product.onrender.com"
+            }
           }
           EOF
 
-      - name: Install Dependencies
+      - name: Install Capacitor 7
         run: |
           [ -f package.json ] || npm init -y
-          npm install --save-dev @capacitor/core @capacitor/cli @capacitor/android
+          npm install --save-dev @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
 
       - name: Add and Sync Android
         run: |
+          rm -rf android
           npx cap add android
           npx cap sync android
+          cat android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Build APK using Gradle
         working-directory: android
