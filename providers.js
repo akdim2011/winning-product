@@ -1,4 +1,5 @@
 'use strict';
+const { jumia } = require('./jumia.js');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 function decode(s) {
@@ -85,7 +86,7 @@ function demo(niche, limit) {
 async function getProducts(niche, limit) {
   const warnings = [];
   if (process.env.FORCE_DEMO !== '1') {
-    for (const fn of [rainforest, amazon]) {
+    for (const fn of [jumia, rainforest, amazon]) {
       try {
         const out = await fn(niche, limit);
         if (out) return Object.assign(out, { warnings });
