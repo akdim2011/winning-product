@@ -71,6 +71,20 @@ input[type=number]{width:100%}
 .spin{display:inline-block;width:18px;height:18px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite;vertical-align:middle;margin-inline-end:8px}
 @keyframes s{to{transform:rotate(360deg)}}
 .num{font-variant-numeric:tabular-nums}
+@media (max-width:560px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .thumb{aspect-ratio:4/3}
+  .thumb img{padding:6px}
+  .rank{top:6px;inset-inline-start:6px;font-size:.75rem;padding:0 7px}
+  .score{top:6px;inset-inline-end:6px;font-size:.9rem;padding:1px 8px}
+  .body{padding:10px;gap:6px}
+  .body h3{font-size:.84rem;min-height:2.5em}
+  .meta{font-size:.74rem;gap:2px 8px}
+  .bars{grid-template-columns:1fr;gap:4px;font-size:.72rem}
+  .calc{grid-template-columns:1fr;gap:6px}
+  .calc .fld label{font-size:.72rem}
+  .verdict{flex-wrap:wrap;gap:4px;font-size:.76rem}
+}
 @media (prefers-reduced-motion:reduce){.spin{animation:none}}
 </style>
 </head>
