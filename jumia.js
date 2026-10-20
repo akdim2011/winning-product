@@ -56,7 +56,7 @@ async function jumia(niche, limit) {
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
-    body: JSON.stringify({ query: q, country: MARKET, maxPages: 1, maxItems: Math.max(limit, 20) }),
+    body: JSON.stringify({ query: q, country: MARKET, maxPages: 1, maxItems: limit }),
     signal: AbortSignal.timeout(110000)
   });
   if (!r.ok) {
