@@ -2,26 +2,24 @@
 /* محرك "الإعلانات أولا": كيجمع إعلانات Facebook المغربية وكيحولها لمنتجات مرتبة */
 const { fetchAds } = require('./ads.js');
 
-// كلمات COD بالعربية/الدارجة/الفرنسية + كلمة النيش
-const COD = ['الدفع عند الاستلام', 'paiement à la livraison', 'اطلب الآن الثمن'];
-const NICHE_WORDS = {
-  beauty: ['العناية بالبشرة والشعر', 'beauté cheveux'],
-  home: ['المطبخ والمنزل', 'cuisine maison'],
-  tech: ['اكسسوارات الهاتف', 'accessoires téléphone'],
-  health: ['الصحة والمساج', 'massage santé'],
-  baby: ['الأطفال والرضع', 'bébé enfant'],
-  car: ['السيارة', 'voiture auto'],
-  fashion: ['الموضة والساعات', 'mode montre sac'],
-  pets: ['الحيوانات الأليفة', 'chien chat'],
-  outdoor: ['التخييم والسفر', 'camping voyage'],
-  tools: ['الأدوات والبريكولاج', 'outil bricolage'],
-  gifts: ['الديكور والهدايا', 'décoration cadeau']
+// كلمات بحث قصيرة (Facebook كيبحث على العبارة كاملة): COD + كلمات المنتجات ديال كل نيش
+const NICHE_QUERIES = {
+  beauty: ['سيروم', 'العناية بالشعر', 'soin visage', 'cheveux livraison', 'الدفع عند الاستلام بشرة'],
+  home: ['ادوات المطبخ', 'ustensiles cuisine', 'gadget maison', 'مكنسة', 'الدفع عند الاستلام منزل'],
+  tech: ['سماعات', 'montre connectée', 'accessoires téléphone', 'chargeur', 'الدفع عند الاستلام هاتف'],
+  health: ['مساج', 'massage', 'تصحيح القوام', 'complément alimentaire', 'الدفع عند الاستلام صحة'],
+  baby: ['bébé', 'ألعاب الأطفال', 'jouet enfant', 'مستلزمات الرضع', 'livraison bébé'],
+  car: ['accessoires voiture', 'اكسسوارات السيارة', 'dashcam', 'aspirateur voiture', 'livraison voiture'],
+  fashion: ['montre homme', 'sac femme', 'lunettes', 'ساعة', 'livraison mode'],
+  pets: ['chien', 'chat', 'accessoires animaux', 'القطط', 'livraison animaux'],
+  outdoor: ['camping', 'تخييم', 'voyage', 'lampe camping', 'livraison camping'],
+  tools: ['outil bricolage', 'perceuse', 'أدوات', 'visseuse', 'livraison outil'],
+  gifts: ['décoration', 'lampe LED', 'ديكور', 'cadeau', 'livraison décoration']
 };
 const BLOCK = /play\.google|apps\.apple|glovo|jumia|facebook\.com|instagram\.com|wa\.me|whatsapp|tiktok\.com|youtube|youtu\.be|bit\.ly|linktr/i;
 
 function queriesFor(nicheId) {
-  const w = NICHE_WORDS[nicheId] || [''];
-  return [COD[0] + ' ' + w[0], COD[1] + ' ' + (w[1] || ''), COD[2] + ' ' + w[0]].map((s) => s.trim());
+  return NICHE_QUERIES[nicheId] || ['livraison gratuite'];
 }
 function days(s) { const t = Date.parse(s); return isFinite(t) ? Math.max(0, Math.round((Date.now() - t) / 86400000)) : null; }
 function host(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }
@@ -76,7 +74,7 @@ function build(ads, limit) {
 
 async function adsProducts(nicheId, limit) {
   const qs = queriesFor(nicheId);
-  const results = await Promise.allSettled(qs.map((q) => fetchAds(q, 30)));
+  const results = await Promise.allSettled(qs.map((q) => fetchAds(q, 40)));
   const all = [], warnings = [];
   results.forEach((r, i) => { if (r.status === 'fulfilled') all.push.apply(all, r.value); else warnings.push(qs[i] + ': ' + r.reason.message); });
   if (!all.length) throw new Error(warnings[0] || 'ما لقينا إعلانات');
