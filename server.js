@@ -15,6 +15,7 @@ const NICHES = require('./niches.js');
 const { getProducts } = require('./providers.js');
 const ads = require('./ads.js');
 const adsEngine = require('./adsengine.js');
+const tiktok = require('./tiktok.js');
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const ROOT = __dirname;
 const PUB = path.join(ROOT, 'public');
@@ -145,6 +146,17 @@ const server = http.createServer(async (req, res) => {
       const used = d.current && d.current.monthlyUsageUsd;
       const max = d.limits && d.limits.maxMonthlyUsageUsd;
       return json(res, 200, { used: used, max: max, cycleEnd: d.monthlyUsageCycle && d.monthlyUsageCycle.endAt });
+    }
+    if (u.pathname === '/api/tiktok-test') {
+      const q = (u.searchParams.get('q') || '').slice(0, 60);
+      const region = (u.searchParams.get('region') || 'MA').toUpperCase().slice(0, 2);
+      const key = 'tt:' + region + ':' + q;
+      const hit = cache.get(key);
+      if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
+      const items = await tiktok.fetchTikTok(q, region, 30);
+      const v = { query: q, region, count: items.length, rawKeys: items[0] ? Object.keys(items[0]) : [], sample: items.slice(0, 6).map(tiktok.pick) };
+      cache.set(key, { t: Date.now(), v });
+      return json(res, 200, v);
     }
     if (u.pathname === '/api/niches') {
       return json(res, 200, NICHES.map((n) => ({ id: n.id, ar: n.ar })));
