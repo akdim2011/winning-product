@@ -72,11 +72,31 @@ function build(ads, limit) {
     .slice(0, limit);
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function fetchRetry(q) {
+  try { return await fetchAds(q, 40); }
+  catch (e) {
+    if (/402|concurrent/i.test(e.message)) { await sleep(8000); return fetchAds(q, 40); }
+    throw e;
+  }
+}
+/* 3 تشغيلات فنفس الوقت كحد أقصى (الخطة المجانية = 5) */
+async function pool(items, n, fn) {
+  const out = new Array(items.length); let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) {
+      const k = i++;
+      try { out[k] = { ok: true, v: await fn(items[k]) }; } catch (e) { out[k] = { ok: false, e }; }
+    }
+  }));
+  return out;
+}
+
 async function adsProducts(nicheId, limit) {
   const qs = queriesFor(nicheId);
-  const results = await Promise.allSettled(qs.map((q) => fetchAds(q, 40)));
+  const results = await pool(qs, 3, fetchRetry);
   const all = [], warnings = [];
-  results.forEach((r, i) => { if (r.status === 'fulfilled') all.push.apply(all, r.value); else warnings.push(qs[i] + ': ' + r.reason.message); });
+  results.forEach((r, i) => { if (r.ok) all.push.apply(all, r.v); else warnings.push(qs[i] + ': ' + r.e.message.slice(0, 120)); });
   if (!all.length) throw new Error(warnings[0] || 'ما لقينا إعلانات');
   return { source: 'ads', total: all.length, items: build(all, limit), warnings };
 }
