@@ -14,6 +14,7 @@ try {
 const NICHES = require('./niches.js');
 const { getProducts } = require('./providers.js');
 const ads = require('./ads.js');
+const adsEngine = require('./adsengine.js');
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const ROOT = __dirname;
 const PUB = path.join(ROOT, 'public');
@@ -146,6 +147,17 @@ const server = http.createServer(async (req, res) => {
       if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
       const items = await ads.fetchAds(q, 30);
       const v = { query: q, count: items.length, advertisers: ads.summarize(items).slice(0, 15), sample: items.slice(0, 5).map(ads.pick), rawKeys: items[0] ? Object.keys(items[0]) : [] };
+      cache.set(key, { t: Date.now(), v });
+      return json(res, 200, v);
+    }
+    if (u.pathname === '/api/ads-products') {
+      const niche = NICHES.find((n) => n.id === u.searchParams.get('niche'));
+      if (!niche) return json(res, 400, { error: 'نيش غير معروف' });
+      const limit = Math.min(Math.max(parseInt(u.searchParams.get('limit'), 10) || 10, 1), 30);
+      const key = 'adsp:' + niche.id + ':' + limit;
+      const hit = cache.get(key);
+      if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
+      const v = await adsEngine.adsProducts(niche.id, limit);
       cache.set(key, { t: Date.now(), v });
       return json(res, 200, v);
     }
