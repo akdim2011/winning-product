@@ -207,7 +207,7 @@ function load(){
       b='<div class="banner warn"><b>نسخة تجريبية:</b> المنتجات والأرقام والصور مجرد نموذج باش تشوف الواجهة. باش تجيب منتجات حقيقية، حط مفتاح Rainforest فملف .env (شوف README).'+
         (j.warnings&&j.warnings.length?'<details><summary>علاش ما خدماش المصدر الحقيقي؟</summary>'+j.warnings.map(esc).join('<br>')+'</details>':'')+'</div>';
     }else{
-      b='<div class="banner ok">المصدر: '+(j.source==='jumia'?'Jumia المغرب (jumia.ma)':j.source==='rainforest'?'Amazon Best Sellers عبر Rainforest API':'Amazon Best Sellers')+'. ثمن البيع افتراضيا = ثمن '+(j.source==='jumia'?'Jumia بالدرهم':'Amazon بالدولار × سعر الصرف')، والشراء 25% منو. عدّلهم فكل بطاقة.</div>';
+      b='<div class="banner ok">المصدر: '+(j.source==='jumia'?'Jumia المغرب (jumia.ma)':j.source==='rainforest'?'Amazon Best Sellers عبر Rainforest API':'Amazon Best Sellers')+'. ثمن البيع افتراضيا = ثمن '+(j.source==='jumia'?'Jumia بالدرهم':'Amazon بالدولار × سعر الصرف')+'، والشراء 25% منو. عدّلهم فكل بطاقة.</div>';
     }
     $('status').innerHTML=b;
     render();
