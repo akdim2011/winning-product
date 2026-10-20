@@ -21,7 +21,22 @@ const ROOT = __dirname;
 const PUB = path.join(ROOT, 'public');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 const cache = new Map();
-const TTL = 30 * 60 * 1000;
+const TTL = 6 * 60 * 60 * 1000; // 6 ساعات: باش ما نصرفوش رصيد Apify بلا فايدة
+const MIN_LEFT = parseFloat(process.env.MIN_BUDGET_USD) || 0.5;
+let budget = { t: 0, left: null };
+async function guard() {
+  const t = process.env.APIFY_TOKEN;
+  if (!t) return;
+  if (Date.now() - budget.t > 120000) {
+    try {
+      const r = await fetch('https://api.apify.com/v2/users/me/limits', { headers: { authorization: 'Bearer ' + t }, signal: AbortSignal.timeout(10000) });
+      const d = (await r.json()).data || {};
+      const used = d.current && d.current.monthlyUsageUsd, max = d.limits && d.limits.maxMonthlyUsageUsd;
+      budget = { t: Date.now(), left: used != null && max ? max - used : null };
+    } catch (e) { /* ما نوقفوش إلا ما قدرناش نقراو الرصيد */ }
+  }
+  if (budget.left != null && budget.left < MIN_LEFT) throw new Error('الرصيد ديال Apify قارب يسالي (باقي $' + budget.left.toFixed(2) + '). وقفنا الطلبات الجديدة باش ما يوقفش الحساب.');
+}
 
 /* ---------- كلمة السر ---------- */
 const PASS = process.env.APP_PASSWORD || '';
@@ -153,6 +168,7 @@ const server = http.createServer(async (req, res) => {
       const key = 'tt:' + region + ':' + q;
       const hit = cache.get(key);
       if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
+      await guard();
       const items = await tiktok.fetchTikTok(q, region, 30);
       const v = { query: q, region, count: items.length, rawKeys: items[0] ? Object.keys(items[0]) : [], sample: items.slice(0, 6).map(tiktok.pick) };
       cache.set(key, { t: Date.now(), v });
@@ -167,6 +183,7 @@ const server = http.createServer(async (req, res) => {
       const key = 'ads:' + q;
       const hit = cache.get(key);
       if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
+      await guard();
       const items = await ads.fetchAds(q, 30);
       const v = { query: q, count: items.length, advertisers: ads.summarize(items).slice(0, 15), sample: items.slice(0, 5).map(ads.pick), rawKeys: items[0] ? Object.keys(items[0]) : [] };
       cache.set(key, { t: Date.now(), v });
@@ -179,6 +196,7 @@ const server = http.createServer(async (req, res) => {
       const key = 'adsp:' + niche.id + ':' + limit;
       const hit = cache.get(key);
       if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
+      await guard();
       const v = await adsEngine.adsProducts(niche.id, limit);
       cache.set(key, { t: Date.now(), v });
       return json(res, 200, v);
@@ -190,6 +208,7 @@ const server = http.createServer(async (req, res) => {
       const key = niche.id + ':' + limit;
       const hit = cache.get(key);
       if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
+      if (process.env.FORCE_DEMO !== '1') await guard();
       const out = await getProducts(niche, limit);
       if (out.source !== 'demo') cache.set(key, { t: Date.now(), v: out });
       return json(res, 200, out);

@@ -74,9 +74,9 @@ function build(ads, limit) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function fetchRetry(q) {
-  try { return await fetchAds(q, 40); }
+  try { return await fetchAds(q, 25); }
   catch (e) {
-    if (/402|concurrent/i.test(e.message)) { await sleep(8000); return fetchAds(q, 40); }
+    if (/402|concurrent/i.test(e.message)) { await sleep(8000); return fetchAds(q, 25); }
     throw e;
   }
 }
