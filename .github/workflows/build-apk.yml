@@ -38,7 +38,7 @@ jobs:
           cat << 'EOF' > capacitor.config.json
           {
             "appId": "com.winningproduct.app",
-            "appName": "Winning Product",
+            "appName": "Radar COD",
             "webDir": "public",
             "server": {
               "url": "https://winning-product.onrender.com"
@@ -55,6 +55,14 @@ jobs:
         run: |
           rm -rf android
           npx cap add android
+          sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            dir=android/app/src/main/res/mipmap-${d%%:*}; px=${d##*:}
+            for n in ic_launcher ic_launcher_round ic_launcher_foreground; do
+              rsvg-convert -w $px -h $px public/icon.svg -o $dir/$n.png
+            done
+          done
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
           npx cap sync android
           cat android/gradle/wrapper/gradle-wrapper.properties
 
