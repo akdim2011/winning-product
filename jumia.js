@@ -1,7 +1,7 @@
 'use strict';
 /* مزود Jumia المغرب عبر Apify (APIFY_TOKEN). الأثمنة بالدرهم كنحولوها لدولار (÷ MAD_PER_USD) حيت الواجهة كتضرب فـ fx */
-const ACTOR = process.env.JUMIA_ACTOR || 'logiover~jumia-scraper';
-const MARKET = process.env.JUMIA_MARKET || 'ma';
+const ACTOR = process.env.JUMIA_ACTOR || 'crawloop~jumia-scraper';
+const MARKET = (process.env.JUMIA_MARKET || 'MA').toUpperCase();
 const MAD_PER_USD = parseFloat(process.env.MAD_PER_USD) || 10; // نفس fx ديال المغرب فالواجهة
 
 // كلمات البحث بالفرنسية (هي اللي كيستعملو المغاربة فـ jumia.ma)
@@ -56,7 +56,7 @@ async function jumia(niche, limit) {
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
-    body: JSON.stringify({ market: MARKET, searchQuery: q, maxResults: Math.max(limit, 20) }),
+    body: JSON.stringify({ query: q, country: MARKET, maxPages: 1, maxItems: Math.max(limit, 20) }),
     signal: AbortSignal.timeout(110000)
   });
   if (!r.ok) {
