@@ -136,6 +136,16 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
 
+    if (u.pathname === '/api/usage') {
+      const t = process.env.APIFY_TOKEN;
+      if (!t) return json(res, 200, { error: 'APIFY_TOKEN ناقص' });
+      const r = await fetch('https://api.apify.com/v2/users/me/limits', { headers: { authorization: 'Bearer ' + t }, signal: AbortSignal.timeout(15000) });
+      if (!r.ok) return json(res, 200, { error: 'Apify HTTP ' + r.status });
+      const d = (await r.json()).data || {};
+      const used = d.current && d.current.monthlyUsageUsd;
+      const max = d.limits && d.limits.maxMonthlyUsageUsd;
+      return json(res, 200, { used: used, max: max, cycleEnd: d.monthlyUsageCycle && d.monthlyUsageCycle.endAt });
+    }
     if (u.pathname === '/api/niches') {
       return json(res, 200, NICHES.map((n) => ({ id: n.id, ar: n.ar })));
     }

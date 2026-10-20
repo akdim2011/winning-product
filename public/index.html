@@ -125,6 +125,7 @@ details.calcbox summary{cursor:pointer;font-size:.84rem;font-weight:700;color:va
   <p class="note">كتستعمل فحساب الربح ديال كل منتج. بدّلها بأرقامك الحقيقية.</p>
 </details>
 
+<div id="usage" class="note"></div>
 <div id="status"></div>
 <div class="grid" id="grid"></div>
 </div>
@@ -227,7 +228,7 @@ function load(){
   $('status').innerHTML='<div class="empty">'+(S.source==='ads'?'كنقلبو على الإعلانات المغربية... ممكن تدوم دقيقة.':'كنجيبو المنتجات...')+'</div>';
   setLoading(true);
   fetch(url).then(function(r){return r.json()}).then(function(j){
-    setLoading(false);
+    setLoading(false);loadUsage();
     if(j.error){$('status').innerHTML='<div class="banner warn">'+esc(j.error)+'</div>';return}
     S.items=j.items.map(function(it){
       if(it.ads!=null)return Object.assign({sell:0,cost:0},it);
@@ -258,7 +259,11 @@ document.addEventListener('input',function(e){
   else if(t.dataset.f){var c=t.closest('.card');S.items[+c.dataset.i][t.dataset.f]=parseFloat(t.value)||0;refreshCard(c)}
 });
 $('sort').addEventListener('change',render);
-renderCountries();renderAssume();
+function loadUsage(){fetch('/api/usage').then(function(r){return r.json()}).then(function(u){
+  if(u.error||u.used==null){$('usage').textContent='';return}
+  $('usage').textContent='رصيد Apify: صرفتي $'+Number(u.used).toFixed(2)+(u.max?' من $'+Number(u.max).toFixed(2):'')+' هاد الشهر';
+}).catch(function(){})}
+renderCountries();renderAssume();loadUsage();
 fetch('/api/niches').then(function(r){return r.json()}).then(function(l){S.nichesList=l;renderNiches();$('status').innerHTML='<div class="empty">اختار النيش والمصدر، ثم ضغط على «اعرض المنتجات».</div>'});
 })();
 </script>
