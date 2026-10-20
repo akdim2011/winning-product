@@ -171,7 +171,7 @@ function card(it,i){
   return '<article class="card" data-i="'+i+'">'+
    '<div class="thumb">'+img+'<span class="rank num">#'+it.rank+'</span><span class="score num tone-'+r.v.c+'" data-sc>'+r.sc+'</span></div>'+
    '<div class="body"><h3><a href="'+esc(it.link)+'" target="_blank" rel="noopener noreferrer">'+esc(it.title)+'</a></h3>'+
-   '<div class="meta num"><span>$<b>'+(it.price?it.price.toFixed(2):'-')+'</b></span><span>'+(it.rating?'<b>'+it.rating+'</b> / 5':'')+'</span><span>'+(it.reviews?'<b>'+fmt(it.reviews)+'</b> تقييم':'')+'</span></div>'+
+   '<div class="meta num"><span>'+(it.priceMAD?'<b>'+Math.round(it.priceMAD)+'</b> د.م':'$<b>'+(it.price?it.price.toFixed(2):'-')+'</b>')+'</span><span>'+(it.rating?'<b>'+it.rating+'</b> / 5':'')+'</span><span>'+(it.reviews?'<b>'+fmt(it.reviews)+'</b> تقييم':'')+'</span></div>'+
    '<div class="bars"><div>السوق <span class="num" data-m>'+Math.round(r.m)+'</span>/50<div class="bar"><i data-mb style="width:'+(r.m*2)+'%"></i></div></div><div>الربح <span class="num" data-p>'+Math.round(r.p.pts)+'</span>/50<div class="bar"><i data-pb style="width:'+(r.p.pts*2)+'%"></i></div></div></div>'+
    '<div class="calc"><div class="fld"><label>ثمن البيع ('+cur()+')</label><input type="number" min="0" step="any" data-f="sell" value="'+Math.round(it.sell)+'"></div><div class="fld"><label>ثمن الشراء ('+cur()+')</label><input type="number" min="0" step="any" data-f="cost" value="'+Math.round(it.cost)+'"></div></div>'+
    '<div class="verdict"><span class="pill tone-'+r.v.c+'" data-v>'+r.v.t+'</span><span class="num" data-net>'+fmt(r.p.net)+' '+cur()+' ربح/طلب</span></div></div></article>';
@@ -207,7 +207,7 @@ function load(){
       b='<div class="banner warn"><b>نسخة تجريبية:</b> المنتجات والأرقام والصور مجرد نموذج باش تشوف الواجهة. باش تجيب منتجات حقيقية، حط مفتاح Rainforest فملف .env (شوف README).'+
         (j.warnings&&j.warnings.length?'<details><summary>علاش ما خدماش المصدر الحقيقي؟</summary>'+j.warnings.map(esc).join('<br>')+'</details>':'')+'</div>';
     }else{
-      b='<div class="banner ok">المصدر: '+(j.source==='rainforest'?'Amazon Best Sellers عبر Rainforest API':'Amazon Best Sellers')+'. ثمن البيع افتراضيا = ثمن Amazon بالدولار × سعر الصرف، والشراء 25% منو. عدّلهم فكل بطاقة.</div>';
+      b='<div class="banner ok">المصدر: '+(j.source==='jumia'?'Jumia المغرب (jumia.ma)':j.source==='rainforest'?'Amazon Best Sellers عبر Rainforest API':'Amazon Best Sellers')+'. ثمن البيع افتراضيا = ثمن '+(j.source==='jumia'?'Jumia بالدرهم':'Amazon بالدولار × سعر الصرف')، والشراء 25% منو. عدّلهم فكل بطاقة.</div>';
     }
     $('status').innerHTML=b;
     render();
