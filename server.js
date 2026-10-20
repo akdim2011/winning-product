@@ -13,6 +13,7 @@ try {
 
 const NICHES = require('./niches.js');
 const { getProducts } = require('./providers.js');
+const ads = require('./ads.js');
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const ROOT = __dirname;
 const PUB = path.join(ROOT, 'public');
@@ -136,6 +137,17 @@ const server = http.createServer(async (req, res) => {
 
     if (u.pathname === '/api/niches') {
       return json(res, 200, NICHES.map((n) => ({ id: n.id, ar: n.ar })));
+    }
+    if (u.pathname === '/api/ads-test') {
+      const q = (u.searchParams.get('q') || '').slice(0, 80);
+      if (!q) return json(res, 400, { error: 'استعمل /api/ads-test?q=كلمة' });
+      const key = 'ads:' + q;
+      const hit = cache.get(key);
+      if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
+      const items = await ads.fetchAds(q, 30);
+      const v = { query: q, count: items.length, advertisers: ads.summarize(items).slice(0, 15), sample: items.slice(0, 5).map(ads.pick), rawKeys: items[0] ? Object.keys(items[0]) : [] };
+      cache.set(key, { t: Date.now(), v });
+      return json(res, 200, v);
     }
     if (u.pathname === '/api/products') {
       const niche = NICHES.find((n) => n.id === u.searchParams.get('niche'));
