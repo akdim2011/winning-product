@@ -15,11 +15,16 @@
   --good-bg:#D9F1E7; --warn-bg:#FBEBCB; --bad-bg:#F7DCDB;
   --f-display:"Cairo","Segoe UI",Tahoma,sans-serif; --f-body:"Tajawal","Segoe UI",Tahoma,sans-serif;
 }
-@media (prefers-color-scheme: dark){:root{
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0A0F22; --surface:#121936; --ink:#E8ECFB; --muted:#98A2CC; --line:#252E55;
   --accent:#7C98FF; --accent-ink:#0A0F22; --soft:#1B2552; --signal:#F5B93B;
   --good:#4CD3A1; --warn:#EDB550; --bad:#F08A86;
   --good-bg:#10312A; --warn-bg:#382C12; --bad-bg:#3A1F24; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0A0F22; --surface:#121936; --ink:#E8ECFB; --muted:#98A2CC; --line:#252E55;
+  --accent:#7C98FF; --accent-ink:#0A0F22; --soft:#1B2552; --signal:#F5B93B;
+  --good:#4CD3A1; --warn:#EDB550; --bad:#F08A86;
+  --good-bg:#10312A; --warn-bg:#382C12; --bad-bg:#3A1F24; color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;padding:0 16px 48px}
 .wrap{max-width:1180px;margin-inline:auto}
@@ -97,6 +102,19 @@ details.calcbox summary{cursor:pointer;font-size:.84rem;font-weight:700;color:va
   .calc{grid-template-columns:1fr}
   .links a{font-size:.78rem}
 }
+
+[hidden]{display:none!important}
+.top{display:flex;align-items:center;gap:12px}
+.top>div{flex:1}
+.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:12px;width:42px;height:42px;font-size:1.15rem;display:grid;place-items:center}
+.toolbar{position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;background:var(--bg);padding:8px 0;margin-bottom:6px}
+.toolbar input[type=search]{flex:1;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.toolbar .seg button{padding:8px 12px}
+.count{font-size:.82rem;color:var(--muted);margin:0 0 8px}
+.grid.list{grid-template-columns:1fr}
+.grid.list .card{display:grid;grid-template-columns:130px 1fr}
+.grid.list .thumb{aspect-ratio:auto;min-height:150px;height:100%}
+@media (max-width:560px){.grid.list{grid-template-columns:1fr}.grid.list .card{grid-template-columns:104px 1fr}.grid.list .thumb{min-height:130px}}
 @media (prefers-reduced-motion:reduce){body.loading .mark .sweep{animation:none}}
 </style>
 </head>
@@ -105,6 +123,7 @@ details.calcbox summary{cursor:pointer;font-size:.84rem;font-weight:700;color:va
 <header>
   <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="var(--accent)"/><g fill="none" stroke="#fff" stroke-width="2" opacity=".85"><circle cx="32" cy="32" r="7"/><circle cx="32" cy="32" r="13" opacity=".7"/><circle cx="32" cy="32" r="19" opacity=".45"/></g><g class="sweep"><path d="M32 32 L32 13 A19 19 0 0 1 48.5 22.5 Z" fill="#F2A413" opacity=".9"/></g><circle cx="32" cy="32" r="2.2" fill="#fff"/><circle cx="44" cy="21" r="2.6" fill="#F2A413" stroke="#fff" stroke-width="1"/></svg>
   <div><h1>Radar COD</h1><p>المنتجات اللي كتباع دابا فالإعلانات، حسب البلد.</p></div>
+  <button class="iconbtn" id="theme" aria-label="الوضع الليلي" title="الوضع الليلي">🌓</button>
 </header>
 
 <div class="panel stack">
@@ -127,6 +146,11 @@ details.calcbox summary{cursor:pointer;font-size:.84rem;font-weight:700;color:va
 
 <div id="usage" class="note"></div>
 <div id="status"></div>
+<div class="toolbar" id="toolbar" hidden>
+  <input type="search" id="q" placeholder="بحث فالمنتجات..." aria-label="بحث">
+  <div class="seg" id="views"><button data-v="grid" aria-pressed="true" aria-label="شبكة">▦</button><button data-v="list" aria-pressed="false" aria-label="لائحة">☰</button></div>
+</div>
+<p class="count" id="count"></p>
 <div class="grid" id="grid"></div>
 </div>
 
@@ -135,7 +159,7 @@ details.calcbox summary{cursor:pointer;font-size:.84rem;font-weight:700;color:va
 var COUNTRIES={MA:{n:'المغرب',cur:'د.م',fx:10,on:true},SA:{n:'السعودية',cur:'ر.س',fx:3.75},AE:{n:'الإمارات',cur:'د.إ',fx:3.67},DZ:{n:'الجزائر',cur:'د.ج',fx:135},TN:{n:'تونس',cur:'د.ت',fx:3.1},EG:{n:'مصر',cur:'ج.م',fx:48}};
 var A={ship:35,other:10,ret:20,cpl:25,conf:60,del:70};
 var AF=[['ship','التوصيل'],['other','مصاريف أخرى'],['ret','ثمن الرجوع'],['cpl','تكلفة الإعلان (CPL)'],['conf','التأكيد %'],['del','التسليم %']];
-var S={country:'MA',source:'ads',niche:'beauty',items:[],nichesList:[]};
+var S={q:'',view:'grid',country:'MA',source:'ads',niche:'beauty',items:[],nichesList:[]};
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
@@ -212,6 +236,11 @@ function render(){
   if(s==='score')list.sort(function(a,b){return totalScore(b)-totalScore(a)});
   else if(s==='new'&&S.source==='ads')list.sort(function(a,b){return a.newestDays-b.newestDays});
   else if(s==='old'&&S.source==='ads')list.sort(function(a,b){return b.days-a.days});
+  var q=S.q.trim().toLowerCase();
+  if(q)list=list.filter(function(it){return [it.title,it.text,it.brand,it.host,(it.advertisers||[]).join(' ')].join(' ').toLowerCase().indexOf(q)>-1});
+  $('toolbar').hidden=!S.items.length;
+  $('count').textContent=S.items.length?(list.length+' من '+S.items.length+' منتج'):'';
+  $('grid').className='grid'+(S.view==='list'?' list':'');
   $('grid').innerHTML=list.map(function(it){var i=S.items.indexOf(it);return it.ads!=null?adsCard(it,i):jmCard(it,i)}).join('');
 }
 function refreshCard(el){
@@ -263,6 +292,21 @@ function loadUsage(){fetch('/api/usage').then(function(r){return r.json()}).then
   if(u.error||u.used==null){$('usage').textContent='';return}
   $('usage').textContent='رصيد Apify: صرفتي $'+Number(u.used).toFixed(2)+(u.max?' من $'+Number(u.max).toFixed(2):'')+' هاد الشهر';
 }).catch(function(){})}
+
+/* وضع ليلي + عرض لائحة/شبكة (كيتحفظو فالمتصفح) */
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+function applyTheme(t){if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);else document.documentElement.removeAttribute('data-theme')}
+applyTheme(store('theme'));
+S.view=store('view')==='list'?'list':'grid';
+document.querySelectorAll('#views button').forEach(function(x){x.setAttribute('aria-pressed',x.dataset.v===S.view)});
+$('theme').addEventListener('click',function(){
+  var cur=document.documentElement.getAttribute('data-theme');
+  var dark=cur?cur==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var next=dark?'light':'dark';applyTheme(next);store('theme',next);
+});
+$('views').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;S.view=b.dataset.v;store('view',S.view);
+  document.querySelectorAll('#views button').forEach(function(x){x.setAttribute('aria-pressed',x.dataset.v===S.view)});render()});
+$('q').addEventListener('input',function(){S.q=this.value;render()});
 renderCountries();renderAssume();loadUsage();
 fetch('/api/niches').then(function(r){return r.json()}).then(function(l){S.nichesList=l;renderNiches();$('status').innerHTML='<div class="empty">اختار النيش والمصدر، ثم ضغط على «اعرض المنتجات».</div>'});
 })();
