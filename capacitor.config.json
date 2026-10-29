@@ -1,0 +1,8 @@
+{
+  "appId": "com.radarcod.free",
+  "appName": "Radar COD",
+  "webDir": "public",
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

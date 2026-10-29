@@ -11,32 +11,14 @@ try {
   });
 } catch (e) { /* ما كاينش .env */ }
 
-const NICHES = require('./niches.js');
+const NICHES = require('./public/niches.js');
 const { getProducts } = require('./providers.js');
-const ads = require('./ads.js');
-const adsEngine = require('./adsengine.js');
-const tiktok = require('./tiktok.js');
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const ROOT = __dirname;
 const PUB = path.join(ROOT, 'public');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
 const cache = new Map();
-const TTL = 6 * 60 * 60 * 1000; // 6 ساعات: باش ما نصرفوش رصيد Apify بلا فايدة
-const MIN_LEFT = parseFloat(process.env.MIN_BUDGET_USD) || 0.5;
-let budget = { t: 0, left: null };
-async function guard() {
-  const t = process.env.APIFY_TOKEN;
-  if (!t) return;
-  if (Date.now() - budget.t > 120000) {
-    try {
-      const r = await fetch('https://api.apify.com/v2/users/me/limits', { headers: { authorization: 'Bearer ' + t }, signal: AbortSignal.timeout(10000) });
-      const d = (await r.json()).data || {};
-      const used = d.current && d.current.monthlyUsageUsd, max = d.limits && d.limits.maxMonthlyUsageUsd;
-      budget = { t: Date.now(), left: used != null && max ? max - used : null };
-    } catch (e) { /* ما نوقفوش إلا ما قدرناش نقراو الرصيد */ }
-  }
-  if (budget.left != null && budget.left < MIN_LEFT) throw new Error('الرصيد ديال Apify قارب يسالي (باقي $' + budget.left.toFixed(2) + '). وقفنا الطلبات الجديدة باش ما يوقفش الحساب.');
-}
+const TTL = 6 * 60 * 60 * 1000; // 6 ساعات: ما كنضغطوش على Jumia بلا فايدة
 
 /* ---------- كلمة السر ---------- */
 const PASS = process.env.APP_PASSWORD || '';
@@ -152,64 +134,18 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
 
-    if (u.pathname === '/api/usage') {
-      const t = process.env.APIFY_TOKEN;
-      if (!t) return json(res, 200, { error: 'APIFY_TOKEN ناقص' });
-      const r = await fetch('https://api.apify.com/v2/users/me/limits', { headers: { authorization: 'Bearer ' + t }, signal: AbortSignal.timeout(15000) });
-      if (!r.ok) return json(res, 200, { error: 'Apify HTTP ' + r.status });
-      const d = (await r.json()).data || {};
-      const used = d.current && d.current.monthlyUsageUsd;
-      const max = d.limits && d.limits.maxMonthlyUsageUsd;
-      return json(res, 200, { used: used, max: max, cycleEnd: d.monthlyUsageCycle && d.monthlyUsageCycle.endAt });
-    }
-    if (u.pathname === '/api/tiktok-test') {
-      const q = (u.searchParams.get('q') || '').slice(0, 60);
-      const region = (u.searchParams.get('region') || 'MA').toUpperCase().slice(0, 2);
-      const key = 'tt:' + region + ':' + q;
-      const hit = cache.get(key);
-      if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
-      await guard();
-      const items = await tiktok.fetchTikTok(q, region, 30);
-      const v = { query: q, region, count: items.length, rawKeys: items[0] ? Object.keys(items[0]) : [], sample: items.slice(0, 6).map(tiktok.pick) };
-      cache.set(key, { t: Date.now(), v });
-      return json(res, 200, v);
-    }
     if (u.pathname === '/api/niches') {
       return json(res, 200, NICHES.map((n) => ({ id: n.id, ar: n.ar })));
-    }
-    if (u.pathname === '/api/ads-test') {
-      const q = (u.searchParams.get('q') || '').slice(0, 80);
-      if (!q) return json(res, 400, { error: 'استعمل /api/ads-test?q=كلمة' });
-      const key = 'ads:' + q;
-      const hit = cache.get(key);
-      if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
-      await guard();
-      const items = await ads.fetchAds(q, 30);
-      const v = { query: q, count: items.length, advertisers: ads.summarize(items).slice(0, 15), sample: items.slice(0, 5).map(ads.pick), rawKeys: items[0] ? Object.keys(items[0]) : [] };
-      cache.set(key, { t: Date.now(), v });
-      return json(res, 200, v);
-    }
-    if (u.pathname === '/api/ads-products') {
-      const niche = NICHES.find((n) => n.id === u.searchParams.get('niche'));
-      if (!niche) return json(res, 400, { error: 'نيش غير معروف' });
-      const limit = Math.min(Math.max(parseInt(u.searchParams.get('limit'), 10) || 10, 1), 30);
-      const key = 'adsp:' + niche.id + ':' + limit;
-      const hit = cache.get(key);
-      if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
-      await guard();
-      const v = await adsEngine.adsProducts(niche.id, limit);
-      cache.set(key, { t: Date.now(), v });
-      return json(res, 200, v);
     }
     if (u.pathname === '/api/products') {
       const niche = NICHES.find((n) => n.id === u.searchParams.get('niche'));
       if (!niche) return json(res, 400, { error: 'نيش غير معروف' });
       const limit = Math.min(Math.max(parseInt(u.searchParams.get('limit'), 10) || 10, 1), 50);
-      const key = niche.id + ':' + limit;
+      const source = ['jumia', 'amazon'].includes(u.searchParams.get('source')) ? u.searchParams.get('source') : 'auto';
+      const key = source + ':' + niche.id + ':' + limit;
       const hit = cache.get(key);
       if (hit && Date.now() - hit.t < TTL) return json(res, 200, hit.v);
-      if (process.env.FORCE_DEMO !== '1') await guard();
-      const out = await getProducts(niche, limit);
+      const out = await getProducts(niche, limit, source);
       if (out.source !== 'demo') cache.set(key, { t: Date.now(), v: out });
       return json(res, 200, out);
     }

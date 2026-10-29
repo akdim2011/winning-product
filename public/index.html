@@ -122,18 +122,18 @@ details.calcbox summary{cursor:pointer;font-size:.84rem;font-weight:700;color:va
 <div class="wrap">
 <header>
   <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="var(--accent)"/><g fill="none" stroke="#fff" stroke-width="2" opacity=".85"><circle cx="32" cy="32" r="7"/><circle cx="32" cy="32" r="13" opacity=".7"/><circle cx="32" cy="32" r="19" opacity=".45"/></g><g class="sweep"><path d="M32 32 L32 13 A19 19 0 0 1 48.5 22.5 Z" fill="#F2A413" opacity=".9"/></g><circle cx="32" cy="32" r="2.2" fill="#fff"/><circle cx="44" cy="21" r="2.6" fill="#F2A413" stroke="#fff" stroke-width="1"/></svg>
-  <div><h1>Radar COD</h1><p>المنتجات اللي كتباع دابا فالإعلانات، حسب البلد.</p></div>
+  <div><h1>Radar COD</h1><p>المنتجات الأكثر طلبا فـ Jumia المغرب. مجاني بلا API مدفوع.</p></div>
   <button class="iconbtn" id="theme" aria-label="الوضع الليلي" title="الوضع الليلي">🌓</button>
 </header>
 
 <div class="panel stack">
   <div class="fld"><span class="lbl">البلد</span><div class="chips" id="countries"></div></div>
   <div class="fld"><span class="lbl">المصدر</span>
-    <div class="seg" id="sources"><button data-s="ads" aria-pressed="true">الإعلانات</button><button data-s="jumia" aria-pressed="false">Jumia</button></div></div>
+    <div class="seg" id="sources"><button data-s="jumia" aria-pressed="true">Jumia</button><button data-s="amazon" aria-pressed="false">Amazon</button></div></div>
   <div class="fld"><span class="lbl">النيش</span><div class="chips" id="niches"></div></div>
   <div class="row">
     <div class="fld"><label for="limit">عدد المنتجات</label><select id="limit"><option>10</option><option>20</option><option>30</option></select></div>
-    <div class="fld"><label for="sort">الترتيب</label><select id="sort"><option value="score">الأعلى سكور</option><option value="new">الأحدث</option><option value="old">الأقدم (بقا خدام)</option></select></div>
+    <div class="fld"><label for="sort">الترتيب</label><select id="sort"><option value="score">الأعلى سكور</option><option value="cheap">الأرخص</option><option value="dear">الأغلى</option></select></div>
     <button class="btn" id="go">اعرض المنتجات</button>
   </div>
 </div>
@@ -144,7 +144,6 @@ details.calcbox summary{cursor:pointer;font-size:.84rem;font-weight:700;color:va
   <p class="note">كتستعمل فحساب الربح ديال كل منتج. بدّلها بأرقامك الحقيقية.</p>
 </details>
 
-<div id="usage" class="note"></div>
 <div id="status"></div>
 <div class="toolbar" id="toolbar" hidden>
   <input type="search" id="q" placeholder="بحث فالمنتجات..." aria-label="بحث">
@@ -154,13 +153,30 @@ details.calcbox summary{cursor:pointer;font-size:.84rem;font-weight:700;color:va
 <div class="grid" id="grid"></div>
 </div>
 
+<script src="niches.js"></script>
+<script src="jumia.js"></script>
 <script>
 (function(){
 var COUNTRIES={MA:{n:'المغرب',cur:'د.م',fx:10,on:true},SA:{n:'السعودية',cur:'ر.س',fx:3.75},AE:{n:'الإمارات',cur:'د.إ',fx:3.67},DZ:{n:'الجزائر',cur:'د.ج',fx:135},TN:{n:'تونس',cur:'د.ت',fx:3.1},EG:{n:'مصر',cur:'ج.م',fx:48}};
 var A={ship:35,other:10,ret:20,cpl:25,conf:60,del:70};
 var AF=[['ship','التوصيل'],['other','مصاريف أخرى'],['ret','ثمن الرجوع'],['cpl','تكلفة الإعلان (CPL)'],['conf','التأكيد %'],['del','التسليم %']];
-var S={q:'',view:'grid',country:'MA',source:'ads',niche:'beauty',items:[],nichesList:[]};
+var S={q:'',view:'grid',country:'MA',source:'jumia',niche:'beauty',items:[],nichesList:[]};
 function $(id){return document.getElementById(id)}
+var IS_APP=!!(window.Capacitor&&(Capacitor.isNativePlatform?Capacitor.isNativePlatform():Capacitor.getPlatform&&Capacitor.getPlatform()!=='web'));
+if(IS_APP){var sf=$('sources').closest('.fld');if(sf)sf.hidden=true} /* فالتطبيق Jumia بوحدو (Amazon ما كيخدمش من التلفون) */
+var TTL=6*3600*1000;
+function cacheGet(k){try{var o=JSON.parse(localStorage.getItem('c:'+k));if(o&&Date.now()-o.t<TTL)return o.v}catch(e){}return null}
+function cacheSet(k,v){try{localStorage.setItem('c:'+k,JSON.stringify({t:Date.now(),v:v}))}catch(e){}}
+/* فالتطبيق: كنجيبو من Jumia مباشرة من التلفون (IP مغربي)، بلا سيرفر */
+function fetchProducts(){
+  var limit=parseInt($('limit').value,10),key=S.niche+':'+limit;
+  if(!IS_APP)return fetch('/api/products?source='+S.source+'&niche='+encodeURIComponent(S.niche)+'&limit='+limit).then(function(r){return r.json()});
+  var hit=cacheGet(key);if(hit)return Promise.resolve(hit);
+  var niche=(window.WP_NICHES||[]).filter(function(n){return n.id===S.niche})[0];
+  if(!niche)return Promise.resolve({error:'نيش غير معروف'});
+  return JumiaScraper.jumia(niche,limit).then(function(out){out.warnings=[];cacheSet(key,out);return out})
+    .catch(function(e){return {error:e.message+''}});
+}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function fmt(n){return isFinite(n)?Math.round(n).toLocaleString('en-US'):'-'}
@@ -190,7 +206,7 @@ function jmScore(it){
   var sc=Math.round(m+p.pts);if(p.loss)sc=Math.min(sc,39);
   return {sc:sc,m:m,p:p};
 }
-function totalScore(it){return it.ads!=null?it.score:jmScore(it).sc}
+function totalScore(it){return jmScore(it).sc}
 
 function renderCountries(){
   $('countries').innerHTML=Object.keys(COUNTRIES).map(function(k){var c=COUNTRIES[k];
@@ -209,20 +225,6 @@ function calcBox(it){
    '<div class="fld"><label>ثمن الشراء ('+cur()+')</label><input type="number" min="0" step="any" data-f="cost" value="'+(it.cost?Math.round(it.cost):'')+'"></div></div>'+
    '<div class="verdict"><span class="pill tone-'+v.c+'" data-v>'+(it.sell?v.t:'دخل الأثمنة')+'</span><span class="num" data-net>'+(it.sell?fmt(p.net)+' '+cur()+' ربح/طلب':'')+'</span></div></details>';
 }
-function adsCard(it,i){
-  var img=it.image?'<img src="'+esc(it.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'<span class="noimg">بلا صورة</span>';
-  var tags='';
-  if(it.newestDays<=14)tags+='<span class="tag hot">كيتجدد دابا</span>';
-  if(it.days>=90)tags+='<span class="tag">خدام من '+it.days+' يوم</span>';
-  var l='';
-  if(it.snapshot)l+='<a href="'+esc(it.snapshot)+'" target="_blank" rel="noopener noreferrer">شوف الإعلان</a>';
-  if(it.link)l+='<a href="'+esc(it.link)+'" target="_blank" rel="noopener noreferrer">صفحة البيع</a>';
-  return '<article class="card ads" data-i="'+i+'"><div class="thumb">'+img+'<span class="score num tone-'+tone(it.score)+'">'+it.score+'</span></div>'+
-   '<div class="body"><h3>'+esc(it.title||it.text||'منتج')+'</h3>'+
-   '<div class="facts num"><div><b>'+it.ads+'</b>إعلانات</div><div><b>'+it.advertisers.length+'</b>معلنين</div><div><b>'+it.days+'</b>يوم</div></div>'+
-   (tags?'<div class="tags">'+tags+'</div>':'')+
-   (l?'<div class="links">'+l+'</div>':'')+calcBox(it)+'</div></article>';
-}
 function jmCard(it,i){
   var r=jmScore(it),p=r.p;
   var img=it.image?'<img src="'+esc(it.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'';
@@ -234,14 +236,14 @@ function jmCard(it,i){
 function render(){
   var list=S.items.slice(),s=$('sort').value;
   if(s==='score')list.sort(function(a,b){return totalScore(b)-totalScore(a)});
-  else if(s==='new'&&S.source==='ads')list.sort(function(a,b){return a.newestDays-b.newestDays});
-  else if(s==='old'&&S.source==='ads')list.sort(function(a,b){return b.days-a.days});
+  else if(s==='cheap')list.sort(function(a,b){return a.sell-b.sell});
+  else if(s==='dear')list.sort(function(a,b){return b.sell-a.sell});
   var q=S.q.trim().toLowerCase();
-  if(q)list=list.filter(function(it){return [it.title,it.text,it.brand,it.host,(it.advertisers||[]).join(' ')].join(' ').toLowerCase().indexOf(q)>-1});
+  if(q)list=list.filter(function(it){return [it.title,it.brand].join(' ').toLowerCase().indexOf(q)>-1});
   $('toolbar').hidden=!S.items.length;
   $('count').textContent=S.items.length?(list.length+' من '+S.items.length+' منتج'):'';
   $('grid').className='grid'+(S.view==='list'?' list':'');
-  $('grid').innerHTML=list.map(function(it){var i=S.items.indexOf(it);return it.ads!=null?adsCard(it,i):jmCard(it,i)}).join('');
+  $('grid').innerHTML=list.map(function(it){var i=S.items.indexOf(it);return jmCard(it,i)}).join('');
 }
 function refreshCard(el){
   var it=S.items[+el.dataset.i],p=profit(it.sell,it.cost),v=verdict(p);
@@ -251,22 +253,19 @@ function refreshCard(el){
 }
 function setLoading(on){document.body.classList.toggle('loading',on)}
 function load(){
-  var url=S.source==='ads'?'/api/ads-products?niche='+encodeURIComponent(S.niche)+'&limit='+$('limit').value
-                          :'/api/products?niche='+encodeURIComponent(S.niche)+'&limit='+$('limit').value;
   $('grid').innerHTML='';
-  $('status').innerHTML='<div class="empty">'+(S.source==='ads'?'كنقلبو على الإعلانات المغربية... ممكن تدوم دقيقة.':'كنجيبو المنتجات...')+'</div>';
+  $('status').innerHTML='<div class="empty">'+'كنجيبو المنتجات من Jumia... (من 5 حتى 15 ثانية)'+'</div>';
   setLoading(true);
-  fetch(url).then(function(r){return r.json()}).then(function(j){
-    setLoading(false);loadUsage();
+  fetchProducts().then(function(j){
+    setLoading(false);
     if(j.error){$('status').innerHTML='<div class="banner warn">'+esc(j.error)+'</div>';return}
     S.items=j.items.map(function(it){
-      if(it.ads!=null)return Object.assign({sell:0,cost:0},it);
       var sell=it.priceMAD||it.price*10;return Object.assign({},it,{sell:sell,cost:sell*0.25});
     });
     var b='';
     if(j.source==='demo')b='<div class="banner warn"><b>نسخة تجريبية:</b> الأرقام والصور نموذج.'+(j.warnings&&j.warnings.length?'<details><summary>علاش؟</summary>'+j.warnings.map(esc).join('<br>')+'</details>':'')+'</div>';
-    else if(j.source==='ads')b='<div class="banner ok">إعلانات Facebook المغربية ('+j.total+' إعلان تحلل). السكور = مدة الإعلان وعدد الإعلانات والمعلنين وواش باقي كيتجدد. هادي مؤشرات، ماشي مبيعات حقيقية.'+(j.warnings&&j.warnings.length?'<details><summary>تنبيهات</summary>'+j.warnings.map(esc).join('<br>')+'</details>':'')+'</div>';
-    else b='<div class="banner ok">المصدر: Jumia المغرب. ثمن البيع = ثمن Jumia، والشراء 25% منو (بدّلو فكل بطاقة).</div>';
+    else if(j.source==='amazon')b='<div class="banner ok">المصدر: Amazon Best Sellers (أمريكا). استعملها كفكرة، والأثمنة بالدولار محولة للدرهم. ثمن الشراء 25% منو (بدّلو فكل بطاقة).'+(j.warnings&&j.warnings.length?'<details><summary>تنبيهات</summary>'+j.warnings.map(esc).join('<br>')+'</details>':'')+'</div>';
+    else b='<div class="banner ok">المصدر: Jumia المغرب (الأكثر شعبية). ثمن البيع = ثمن Jumia، والشراء 25% منو (بدّلو فكل بطاقة). التقييمات والترتيب مؤشرات ماشي مبيعات حقيقية.</div>';
     $('status').innerHTML=b+(S.items.length?'':'<div class="empty">ما لقينا منتجات. جرب نيش آخر.</div>');
     render();
   }).catch(function(){
@@ -288,11 +287,6 @@ document.addEventListener('input',function(e){
   else if(t.dataset.f){var c=t.closest('.card');S.items[+c.dataset.i][t.dataset.f]=parseFloat(t.value)||0;refreshCard(c)}
 });
 $('sort').addEventListener('change',render);
-function loadUsage(){fetch('/api/usage').then(function(r){return r.json()}).then(function(u){
-  if(u.error||u.used==null){$('usage').textContent='';return}
-  $('usage').textContent='رصيد Apify: صرفتي $'+Number(u.used).toFixed(2)+(u.max?' من $'+Number(u.max).toFixed(2):'')+' هاد الشهر';
-}).catch(function(){})}
-
 /* وضع ليلي + عرض لائحة/شبكة (كيتحفظو فالمتصفح) */
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
 function applyTheme(t){if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);else document.documentElement.removeAttribute('data-theme')}
@@ -307,8 +301,9 @@ $('theme').addEventListener('click',function(){
 $('views').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;S.view=b.dataset.v;store('view',S.view);
   document.querySelectorAll('#views button').forEach(function(x){x.setAttribute('aria-pressed',x.dataset.v===S.view)});render()});
 $('q').addEventListener('input',function(){S.q=this.value;render()});
-renderCountries();renderAssume();loadUsage();
-fetch('/api/niches').then(function(r){return r.json()}).then(function(l){S.nichesList=l;renderNiches();$('status').innerHTML='<div class="empty">اختار النيش والمصدر، ثم ضغط على «اعرض المنتجات».</div>'});
+if(IS_APP){var am=document.querySelector('#sources [data-s="amazon"]');if(am)am.remove();document.body.classList.add('app')}
+renderCountries();renderAssume();
+(IS_APP?Promise.resolve(window.WP_NICHES.map(function(n){return {id:n.id,ar:n.ar}})):fetch('/api/niches').then(function(r){return r.json()})).then(function(l){S.nichesList=l;renderNiches();$('status').innerHTML='<div class="empty">اختار النيش والمصدر، ثم ضغط على «اعرض المنتجات».</div>'});
 })();
 </script>
 </body>

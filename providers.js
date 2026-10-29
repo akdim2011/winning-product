@@ -1,5 +1,5 @@
 'use strict';
-const { jumia } = require('./jumia.js');
+const { jumia } = require('./public/jumia.js');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 function decode(s) {
@@ -7,28 +7,7 @@ function decode(s) {
 }
 function num(s) { const n = parseFloat(String(s || '').replace(/,/g, '')); return isFinite(n) ? n : 0; }
 
-/* 1) Rainforest API: مفتاح مدفوع، أضمن مصدر (RAINFOREST_API_KEY) */
-async function rainforest(niche, limit) {
-  const key = process.env.RAINFOREST_API_KEY;
-  if (!key) return null;
-  const q = new URLSearchParams({ api_key: key, type: 'bestsellers', amazon_domain: 'amazon.com', url: 'https://www.amazon.com/zgbs/' + niche.slug });
-  const r = await fetch('https://api.rainforestapi.com/request?' + q, { signal: AbortSignal.timeout(40000) });
-  if (!r.ok) throw new Error('Rainforest HTTP ' + r.status);
-  const j = await r.json();
-  const list = (j.bestsellers || []).slice(0, limit).map((b, i) => ({
-    rank: b.rank || i + 1,
-    title: b.title || '',
-    image: b.image || '',
-    link: b.link || '',
-    price: b.price && b.price.value ? b.price.value : 0,
-    rating: b.rating || 0,
-    reviews: b.ratings_total || 0
-  }));
-  if (!list.length) throw new Error('Rainforest رجع نتيجة فارغة');
-  return { source: 'rainforest', items: list };
-}
-
-/* 2) قراءة صفحة Amazon Best Sellers مباشرة: مجاني ولكن Amazon كيحجب بزاف */
+/* Amazon Best Sellers: قراءة صفحة Amazon Best Sellers مباشرة: مجاني ولكن Amazon كيحجب بزاف */
 async function amazon(niche, limit) {
   const r = await fetch('https://www.amazon.com/zgbs/' + niche.slug, {
     headers: { 'user-agent': UA, 'accept-language': 'en-US,en;q=0.9', accept: 'text/html' },
@@ -83,10 +62,11 @@ function demo(niche, limit) {
   return { source: 'demo', items };
 }
 
-async function getProducts(niche, limit) {
+async function getProducts(niche, limit, source) {
   const warnings = [];
   if (process.env.FORCE_DEMO !== '1') {
-    for (const fn of [jumia, rainforest, amazon]) {
+    const order = source === 'amazon' ? [amazon] : source === 'jumia' ? [jumia] : [jumia, amazon];
+    for (const fn of order) {
       try {
         const out = await fn(niche, limit);
         if (out) return Object.assign(out, { warnings });

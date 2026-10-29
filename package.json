@@ -1,8 +1,13 @@
 {
-  "name": "winning-product-finder",
-  "version": "1.0.0",
-  "description": "صائد المنتجات الرابحة: اختار نيش وشوف الأكثر مبيعا بالصور والنقطة",
+  "name": "winning-product-free",
+  "version": "2.0.0",
+  "description": "Radar COD (نسخة مجانية): المنتجات الأكثر طلبا فـ Jumia المغرب بسكريبت خاص، بلا Apify. كيخدم كتطبيق أندرويد وكموقع محلي.",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=18" }
+  "scripts": { "start": "node server.js", "test": "node --test tests/jumia.test.js" },
+  "engines": { "node": ">=18" },
+  "devDependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  }
 }

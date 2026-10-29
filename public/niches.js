@@ -1,7 +1,10 @@
-'use strict';
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.WP_NICHES = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
 // slug = Amazon Best Sellers category (https://www.amazon.com/zgbs/<slug>)
 // demo = أسماء المنتجات فالنسخة التجريبية (كتخدم بلا انترنت ولا مفتاح)
-module.exports = [
+var NICHES = [
   { id: 'beauty', ar: 'الجمال والعناية', slug: 'beauty', demo: ['Face roller massager','Hair straightener brush','Blackhead remover vacuum','Electric eyebrow trimmer','Heatless hair curler','LED face mask','Nail drill kit','Teeth whitening kit','Scalp massager','Ice facial globes'] },
   { id: 'home', ar: 'المنزل والمطبخ', slug: 'kitchen', demo: ['Vegetable chopper','Electric spin scrubber','Silicone food covers','Mini handheld blender','Magnetic spice rack','Vacuum storage bags','Garlic press rocker','Foldable dish rack','Air fryer liners','Oil sprayer bottle'] },
   { id: 'tech', ar: 'الإلكترونيات والإكسسوارات', slug: 'electronics', demo: ['Magnetic phone holder','Wireless earbuds','LED strip lights','Mini projector','Smart watch fitness','Portable charger 20000mAh','Ring light with tripod','Bluetooth speaker','Laptop stand','Cable organizer'] },
@@ -14,3 +17,5 @@ module.exports = [
   { id: 'tools', ar: 'الأدوات والبريكولاج', slug: 'hi', demo: ['Electric screwdriver','Laser level','Multi-tool pliers','Tool organizer','Cordless glue gun','Stud finder','Tape measure digital','Wire stripper','Cable tester','Magnetic wristband'] },
   { id: 'gifts', ar: 'الهدايا والديكور', slug: 'home-garden', demo: ['Galaxy projector lamp','LED neon sign','Scented candle set','Photo frame digital','Artificial plants set','Wall clock modern','Table lamp touch','Incense burner','Fairy string lights','Decorative tray'] }
 ];
+return NICHES;
+});
