@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -47,3 +49,14 @@ jobs:
         with:
           name: radar-cod-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK as a Release (direct download link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk radar-cod.apk
+          gh release delete app-free-latest --yes --cleanup-tag || true
+          gh release create app-free-latest radar-cod.apk \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Radar COD (APK)" \
+            --notes "Debug APK. Download radar-cod.apk on your phone and install it."
