@@ -1,0 +1,43 @@
+name: Build Masarifi APK
+on:
+  push:
+    branches: [main]
+    paths: ['masarifi/**', '.github/workflows/masarifi-apk.yml']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: masarifi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm install
+      - run: npx cap add android
+      - name: Launcher icons
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            dir=android/app/src/main/res/mipmap-${d%%:*}; px=${d##*:}
+            for n in ic_launcher ic_launcher_round ic_launcher_foreground; do
+              convert www/icon-512.png -resize ${px}x${px} $dir/$n.png
+            done
+          done
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+      - run: npx cap sync android
+      - name: Build debug APK
+        working-directory: masarifi/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: masarifi-apk
+          path: masarifi/android/app/build/outputs/apk/debug/app-debug.apk

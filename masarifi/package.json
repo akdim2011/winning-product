@@ -1,0 +1,11 @@
+{
+  "name": "masarifi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Masarifi - monthly expense tracker",
+  "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/core": "^6.1.0"
+  }
+}
